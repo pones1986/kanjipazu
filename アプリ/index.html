@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>戦国漢字脳トレパズル</title>
+    <style>
+        body { background-color: #f2ebd9; font-family: sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; user-select: none; -webkit-user-select: none; touch-action: none; min-height: 100vh; box-sizing: border-box; }
+        h1 { color: #333; text-align: center; margin: 5px 0; font-size: 20px; }
+        .desc { font-size: 11px; color: #555; text-align: center; margin-bottom: 8px; max-width: 340px; line-height: 1.4; }
+        
+        /* 【変更】スマホでの表示サイズを大きくするため、全体幅を 340px から 380px に拡大 */
+        #layout { display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 10px; border: 3px double #555; position: relative; width: 100%; max-width: 380px; box-sizing: border-box; }
+        #main-area { display: flex; gap: 10px; justify-content: center; }
+        
+        /* 【変更】マス目拡大（36px→44px）に伴い、盤面サイズを 220px × 440px に拡大 */
+        #board { width: 220px; height: 440px; background-color: #faf6ee; border: 3px solid #8b7d6b; position: relative; overflow: hidden; }
+        
+        /* 【変更】セルサイズを 44px 四方に拡大、文字サイズも 18px から 24px へ大幅アップ */
+        .cell { width: 44px; height: 44px; position: absolute; box-sizing: border-box; border: 1px dashed #e2dacb; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; background-color: #fff; transition: 0.2s; }
+        .cell.normal { color: #1e40af; border: 2px solid #1e40af; }
+        .cell.special { color: #b91c1c; border: 2px solid #b91c1c; background-color: #fef2f2; }
+        .cell.vanishing { background-color: #fef08a !important; transform: scale(1.2); opacity: 0; z-index: 10; }
+        
+        #side { display: flex; flex-direction: column; gap: 8px; width: 120px; }
+        .box { background-color: #e8ded1; padding: 6px; border-radius: 4px; border: 1px solid #aaa; font-size: 11px; font-weight: bold; }
+        #next-box { height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+        
+        /* 【変更】次ノ漢字のプレビュー文字サイズも 16px から 20px へ拡大 */
+        .preview { width: 36px; height: 36px; border: 2px solid #333; background: #fff; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; }
+        
+        /* 【変更】全消しバナーの位置調整 */
+        #zenkeshi-banner { position: absolute; top: 190px; left: 0; width: 100%; height: 40px; background-color: rgba(220, 38, 38, 0.9); color: #fff; display: none; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; letter-spacing: 4px; z-index: 50; box-shadow: 0 4px 6px rgba(0,0,0,0.2); text-shadow: 1px 1px 0px #000; }
+        
+        /* 【変更】スタート画面内にランキングを収めるため、縦スクロール可能＆レイアウトを調整 */
+        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(242, 235, 217, 0.98); z-index: 100; display: flex; flex-direction: column; align-items: center; padding: 15px 10px; box-sizing: border-box; gap: 12px; overflow-y: auto; }
+        .menu-title { font-size: 18px; font-weight: bold; color: #333; border-bottom: 2px solid #8b7d6b; padding-bottom: 4px; }
+        .diff-select { display: flex; flex-direction: column; gap: 8px; width: 160px; }
+        .diff-label { display: flex; align-items: center; gap: 8px; background: #fff; padding: 8px; border: 1px solid #aaa; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .start-btn { background-color: #b91c1c; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; box-shadow: 0 4px 0 #7f1d1d; width: 160px; text-align: center; }
+        .start-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #7f1d1d; }
+        .sys-btn { width: 100%; padding: 6px; margin-top: 4px; font-weight: bold; border-radius: 4px; border: 1px solid #777; cursor: pointer; font-size: 11px; }
+        #pause-btn { background-color: #eab308; color: #000; }
+        #back-btn { background-color: #6b7280; color: #fff; }
+        
+        /* ランキングタブとリストの共通スタイル */
+        .rank-tabs { display: flex; gap: 1px; margin-top: 4px; border-bottom: 1px solid #999; width: 100%; }
+        .rank-tab { font-size: 10px; padding: 4px 2px; border: 1px solid #aaa; background: #dcd1c4; border-radius: 3px 3px 0 0; cursor: pointer; flex: 1; text-align: center; }
+        .rank-tab.active { background: #e8ded1; border-bottom: 1px solid #e8ded1; color: #b91c1c; }
+        .rank-list { margin: 6px 0 0 0; padding-left: 18px; font-size: 11px; line-height: 1.4; }
+        
+        /* スタート画面用ランキングボックスの専用幅 */
+        .menu-rank-box { width: 200px; padding: 6px; background-color: #e8ded1; border-radius: 4px; border: 1px solid #aaa; font-weight: bold; }
+
+        /* PC操作ボタン（コンパクトサイズ維持） */
+        #controls { margin-top: 15px; display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 380px; box-sizing: border-box; align-items: center; }
+        .btn-row-top, .btn-row-bottom { display: flex; justify-content: center; gap: 8px; width: 100%; }
+        .btn { width: 52px; height: 52px; display: flex; justify-content: center; align-items: center; color: white; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; box-sizing: border-box; padding: 0; }
+        .btn-arrow { background-color: #8b7d6b; box-shadow: 0 2px 0 #5c5246; font-size: 18px; }
+        .btn-arrow:active { transform: translateY(1px); box-shadow: 0 1px 0 #5c5246; }
+        .btn-rot { background-color: #cd853f; box-shadow: 0 2px 0 #8b4513; }
+        .btn-rot:active { transform: translateY(1px); box-shadow: 0 1px 0 #8b4513; }
+        .spacer-btn { width: 52px; }
+
+        /* スマホ時はボタンと上部説明を非表示 */
+        @media (hover: none) and (pointer: coarse) {
+            #controls { display: none !important; }
+            .desc { display: none !important; }
+        }
+    </style>
+    <!-- PWA用の設定読み込み -->
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('PWA Service Worker 登録完了'))
+                .catch((err) => console.log('PWA 登録失敗', err));
+        }
+    </script>
+</head>
+<body>
+    <h1>戦国漢字脳トレパズル</h1>
+    <div class="desc">【操作】画面のボタンタップ または 左右下矢印キー / X,上キー：右回転 / Zキー：左回転</div>
+    <div id="layout">
+        <!-- スタート画面（難易度選択＋ランキング同時表示に拡張） -->
+        <div id="start-screen">
+            <div class="menu-title">～ 難易度選択 ～</div>
+            <div class="diff-select">
+                <label class="diff-label"><input type="radio" name="difficulty" value="easy" checked> 初級 (Easy)</label>
+                <label class="diff-label"><input type="radio" name="difficulty" value="normal"> 中級 (Normal)</label>
+                <label class="diff-label"><input type="radio" name="difficulty" value="hard"> 上級 (Hard)</label>
+            </div>
+            <button class="start-btn" onclick="startGame()">いざ出陣！</button>
+            
+            <!-- スタート画面用ランキング -->
+            <div class="menu-rank-box" style="margin-top: 5px;">
+                <div style="text-align: center; font-size: 11px; margin-bottom: 2px;">【現在の五傑】</div>
+                <div class="rank-tabs">
+                    <div id="m-tab-easy" class="rank-tab active" onclick="switchRankTab('easy')">初級</div>
+                    <div id="m-tab-normal" class="rank-tab" onclick="switchRankTab('normal')">中級</div>
+                    <div id="m-tab-hard" class="rank-tab" onclick="switchRankTab('hard')">上級</div>
+                </div>
+                <ol id="menu-rank-list" class="rank-list"></ol>
+            </div>
+        </div>
+
+        <div id="main-area">
+            <div id="board">
+                <div id="zenkeshi-banner">全消し</div>
+            </div>
+            <div id="side">
+                <div class="box" id="next-box">
+                    <div>次ノ漢字</div>
+                    <div style="display: flex; gap: 5px; margin-top: 4px;">
+                        <div id="next1" class="preview"></div>
+                        <div id="next2" class="preview"></div>
+                    </div>
+                </div>
+                <div class="box">
+                    <div id="score-disp">得点: 0</div>
+                    <div id="combo-disp">連鎖: 0</div>
+                    <div id="time-disp">生存: 0秒</div>
+                    <div id="speed-disp">速度: 100%</div>
+                </div>
+                <div>
+                    <button id="pause-btn" class="sys-btn" onclick="togglePause()">中断/再開</button>
+                    <button id="back-btn" class="sys-btn" onclick="returnToMenu()">本陣へ戻る</button>
+                </div>
+                <!-- プレイ画面用ランキング -->
+                <div class="box" style="padding: 4px 2px;">
+                    <div class="rank-tabs">
+                        <div id="tab-easy" class="rank-tab active" onclick="switchRankTab('easy')">初級</div>
+                        <div id="tab-normal" class="rank-tab" onclick="switchRankTab('normal')">中級</div>
+                        <div id="tab-hard" class="rank-tab" onclick="switchRankTab('hard')">上級</div>
+                    </div>
+                    <ol id="rank-list" class="rank-list"></ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PCブラウザ用のボタンUI -->
+    <div id="controls">
+        <div class="btn-row-top">
+            <button class="btn btn-rot" mousedown="press('rotateL', event)" onclick="press('rotateL', event)">左回転</button>
+            <div class="spacer-btn"></div>
+            <button class="btn btn-rot" mousedown="press('rotateR', event)" onclick="press('rotateR', event)">右回転</button>
+        </div>
+        <div class="btn-row-bottom">
+            <button class="btn btn-arrow" mousedown="press('left', event)" onclick="press('left', event)">←</button>
+            <button class="btn btn-arrow" mousedown="press('down', event)" onclick="press('down', event)">↓</button>
+            <button class="btn btn-arrow" mousedown="press('right', event)" onclick="press('right', event)">→</button>
+        </div>
+    </div>
+<script>
+    let audioCtx = null;
+    function play(t) {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.connect(g); g.connect(audioCtx.destination);
+            if (t === 'move') { o.frequency.setValueAtTime(300, audioCtx.currentTime); g.gain.setValueAtTime(0.03, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.05); }
+            if (t === 'rotate') { o.frequency.setValueAtTime(400, audioCtx.currentTime); g.gain.setValueAtTime(0.03, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.05); }
+            if (t === 'land') { o.frequency.setValueAtTime(150, audioCtx.currentTime); g.gain.setValueAtTime(0.08, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.08); }
+            if (t === 'clear') { o.type = 'sine'; o.frequency.setValueAtTime(550, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(1100, audioCtx.currentTime + 0.2); g.gain.setValueAtTime(0.1, audioCtx.currentTime); o.start(); o.stop(audioCtx.currentTime + 0.2); }
+        } catch (e) {}
+    }
+    // 【変更】マス目の大きさを 36 から 44 に大きく変更
+    const COLS = 5, ROWS = 10, SIZE = 44, allNormals = ["槍", "刀", "馬", "鉄", "弓"], allSpecials = ["信", "長", "政", "玄", "謙", "宗"], pairs = ["信長", "長信", "長政", "政長", "信玄", "玄信", "謙信", "信謙", "政宗", "宗政"];
+    let score = 0, seconds = 0, speedRatio = 1.0, gameId = null, timeId = null, isLock = false, isPaused = false, grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null)), active = null, next = null, mode = "normal", activeRankTab = "easy";
+
+    function showMenu() { document.getElementById('start-screen').style.display = 'flex'; switchRankTab(mode); }
+    function startGame() {
+        const r = document.getElementsByName('difficulty');
+        for (let i = 0; i < r.length; i++) { if (r[i].checked) mode = r[i].value; }
+        document.getElementById('start-screen').style.display = 'none';
+        init();
+    }
+    function init() {
+        grid = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
+        score = 0; seconds = 0; isLock = false; isPaused = false; speedRatio = 1.0;
+        document.getElementById('zenkeshi-banner').style.display = 'none';
+        next = genPair(); spawn(); switchRankTab(mode);
+        resetTimers(); ui(); draw();
+    }
+    function resetTimers() { clearInterval(gameId); clearInterval(timeId); gameId = setInterval(loop, 1000 / speedRatio); timeId = setInterval(tick, 1000); }
+    function togglePause() { if (document.getElementById('start-screen').style.display !== 'none') return; isPaused = !isPaused; if (isPaused) { clearInterval(gameId); clearInterval(timeId); } else { resetTimers(); } }
+    function returnToMenu() { clearInterval(gameId); clearInterval(timeId); showMenu(); }
+    function genPair() {
+        let cn = [...allNormals], a = "槍", rnd = Math.random() * 100;
+        if (mode === "easy") { cn = ["刀", "槍", "馬", "弓"]; if (rnd < 20) { a = ["信", "長", "政", "玄"][Math.floor(Math.random() * 4)]; } else { a = cn[Math.floor(Math.random() * 4)]; } }
+        else if (mode === "normal") { if (rnd < 33) { a = allSpecials[Math.floor(Math.random() * 6)]; } else { a = cn[Math.floor(Math.random() * 5)]; } }
+        else if (mode === "hard") { if (rnd < 6) { a = "信"; } else if (rnd < 13) { a = "長"; } else if (rnd < 20) { a = "政"; } else if (rnd < 30) { a = "玄"; } else if (rnd < 40) { a = "謙"; } else if (rnd < 50) { a = "宗"; } else { a = cn[Math.floor(Math.random() * 5)]; } }
+        let sa = allSpecials.includes(a), b;
+        if (sa) { b = cn[Math.floor(Math.random() * cn.length)]; } else { let f = cn.filter(v => v !== a); b = f[Math.floor(Math.random() * f.length)]; }
+        return { a: { char: a, type: sa ? 'special' : 'normal' }, b: { char: b, type: allSpecials.includes(b) ? 'special' : 'normal' } };
+    }
+    function spawn() {
+        let p = next; next = genPair(); document.getElementById('zenkeshi-banner').style.display = 'none';
+        document.getElementById('next1').innerText = next.a.char; document.getElementById('next1').className = `preview ${next.a.type}`;
+        document.getElementById('next2').innerText = next.b.char; document.getElementById('next2').className = `preview ${next.b.type}`;
+        active = { a: { x: 2, y: 1, char: p.a.char, type: p.a.type }, b: { x: 2, y: 0, char: p.b.char, type: p.b.type }, rot: 0 };
+        if (hit(active.a.x, active.a.y) || hit(active.b.x, active.b.y)) over();
+    }
+    function hit(x, y) { return x < 0 || x >= COLS || y >= ROWS || (y >= 0 && grid[y][x] !== null); }
+    function loop() { if (!isLock && !isPaused && !step(0, 1)) lock(); }
+    function tick() { seconds++; let max = mode === "easy" ? 5.0 : (mode === "hard" ? 3.5 : 2.5); if (seconds % 15 === 0 && speedRatio < max) { speedRatio = Math.min(max, speedRatio + 0.1); clearInterval(gameId); gameId = setInterval(loop, 1000 / speedRatio); } ui(); }
+    function step(dx, dy) { if (!active || isPaused) return false; if (!hit(active.a.x + dx, active.a.y + dy) && !hit(active.b.x + dx, active.b.y + dy)) { active.a.x += dx; active.a.y += dy; active.b.x += dx; active.b.y += dy; draw(); if (dx !== 0) play('move'); return true; } return false; }
+    function turn(dir) { if (!active || isPaused) return; let r = (active.rot + (dir === 'R' ? 1 : 3)) % 4, ox = [0, 1, 0, -1][r], oy = [-1, 0, 1, 0][r], bx = active.a.x + ox, by = active.a.y + oy, sx = bx < 0 ? 1 : (bx >= COLS ? -1 : 0); if (!hit(active.a.x + sx, active.a.y) && !hit(bx + sx, by)) { active.a.x += sx; active.b.x = bx + sx; active.b.y = by; active.rot = r; play('rotate'); draw(); } }
+    function lock() { isLock = true; play('land'); if (active.a.y >= 0) grid[active.a.y][active.a.x] = { char: active.a.char, type: active.a.type }; if (active.b.y >= 0) grid[active.b.y][active.b.x] = { char: active.b.char, type: active.b.type }; active = null; chain(1); }
+    function fall() { let m = false; for (let x = 0; x < COLS; x++) { for (let y = ROWS - 2; y >= 0; y--) { if (grid[y][x] !== null && grid[y + 1][x] === null) { grid[y + 1][x] = grid[y][x]; grid[y][x] = null; m = true; } } } return m; }
+    function checkEmptyBoard() { for (let y = 0; y < ROWS; y++) { for (let x = 0; x < COLS; x++) { if (grid[y][x] !== null) return false; } } return true; }
+    async function chain(c) {
+        let d = false; while (fall()) { d = true; draw(); await new Promise(r => setTimeout(r, 80)); } if (d) { await new Promise(r => setTimeout(r, 150)); } let v = find();
+        if (v.length > 0) { document.getElementById('combo-disp').innerText = `連鎖: ${c} 連鎖！`; play('clear'); v.forEach(p => { let el = document.getElementById(`c-${p.y}-${p.x}`); if (el) el.classList.add('vanishing'); }); await new Promise(r => setTimeout(r, 250)); let pts = 0; v.forEach(p => { if (grid[p.y][p.x]) pts += grid[p.y][p.x].type === 'special' ? 2 : 1; grid[p.y][p.x] = null; }); score += pts * c; draw(); chain(c + 1); }
+        else { document.getElementById('combo-disp').innerText = `連鎖: 0`; if (checkEmptyBoard()) { document.getElementById('zenkeshi-banner').style.display = 'flex'; } isLock = false; ui(); spawn(); draw(); }
+    }
+    function find() {
+        let m = []; for (let y = 0; y < ROWS; y++) { for (let x = 0; x < COLS; x++) { let cur = grid[y][x]; if (!cur) continue; [{dx:1, dy:0},{dx:0, dy:1}].forEach(d => { let nx = x + d.dx, ny = y + d.dy; if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && grid[ny][nx]) { let t = grid[ny][nx]; if (cur.type === 'normal' && t.type === 'normal' && cur.char === t.char) m.push({x, y},{x:nx, y:ny}); let comb = cur.char + t.char; if (mode === "easy") { if (["信長", "長信", "長政", "政長", "信玄", "玄信"].includes(comb)) m.push({x, y},{x:nx, y:ny}); } else { if (pairs.includes(comb)) m.push({x, y},{x:nx, y:ny}); } } }); } }
+        let u = []; let chk = Array(ROWS).fill(null).map(() => Array(COLS).fill(false)); m.forEach(p => { if (!chk[p.y][p.x]) { chk[p.y][p.x] = true; u.push(p); } }); return u;
+    }
+    function draw() {
+        const b = document.getElementById('board'), cells = b.querySelectorAll('.cell'); cells.forEach(c => c.remove());
+        for (let y = 0; y < ROWS; y++) { for (let x = 0; x < COLS; x++) { if (grid[y][x]) { const c = document.createElement('div'); c.className = `cell ${grid[y][x].type}`; c.id = `c-${y}-${x}`; c.innerText = grid[y][x].char; c.style.left = (x * SIZE) + 'px'; c.style.top = (y * SIZE) + 'px'; b.appendChild(c); } } }
+        if (active) { [active.a, active.b].forEach(p => { if (p.y >= 0) { const c = document.createElement('div'); c.className = `cell ${p.type}`; c.innerText = p.char; c.style.left = (p.x * SIZE) + 'px'; c.style.top = (p.y * SIZE) + 'px'; c.style.boxShadow = "0 0 4px rgba(0,0,0,0.3)"; b.appendChild(c); } }); }
+    }
+    function ui() { document.getElementById('score-disp').innerText = `得点: ${score}`; document.getElementById('time-disp').innerText = `生存: ${seconds}秒`; document.getElementById('speed-disp').innerText = `速度: ${Math.round(speedRatio * 100)}%`; }
+    
+    let lastBtnPress = 0;
+    function press(act, e) {
+        if(e) { e.preventDefault(); e.stopPropagation(); }
+        let now = Date.now(); if (now - lastBtnPress < 60) return; lastBtnPress = now;
+        if (isLock || isPaused || document.getElementById('start-screen').style.display !== 'none') return;
+        if (act === 'left') step(-1, 0); if (act === 'right') step(1, 0); if (act === 'down') step(0, 1);
+        if (act === 'rotateR') turn('R'); if (act === 'rotateL') turn('L');
+    }
+    window.addEventListener('keydown', (e) => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyX', 'KeyZ'].includes(e.code)) e.preventDefault(); if (e.code === 'ArrowLeft') press('left'); if (e.code === 'ArrowRight') press('right'); if (e.code === 'ArrowDown') press('down'); if (e.code === 'ArrowUp' || e.code === 'KeyX') press('rotateR'); if (e.code === 'KeyZ') press('rotateL'); });
+    
+    // 【変更】スタートメニューとゲーム内の両方のランキング表示を完全同期して切り替える処理
+    function switchRankTab(tm) { 
+        activeRankTab = tm; 
+        ["easy", "normal", "hard"].forEach(m => { 
+            document.getElementById(`tab-${m}`).classList.remove('active'); 
+            document.getElementById(`m-tab-${m}`).classList.remove('active'); 
+        }); 
+        document.getElementById(`tab-${tm}`).classList.add('active'); 
+        document.getElementById(`m-tab-${tm}`).classList.add('active'); 
+        
+        const l = document.getElementById('rank-list'); 
+        const ml = document.getElementById('menu-rank-list'); 
+        l.innerHTML = ''; 
+        ml.innerHTML = ''; 
+        
+        let r = JSON.parse(localStorage.getItem(`sz_rank_${tm}`)) || getDefaultRank(tm); 
+        r.sort((a,b)=>b.score-a.score).slice(0, 5).forEach(u => { 
+            const li = document.createElement('li'); 
+            li.innerText = `${u.name}:${u.score}点`; 
+            l.appendChild(li); 
+            
+            const mLi = document.createElement('li'); 
+            mLi.innerText = `${u.name}:${u.score}点`; 
+            ml.appendChild(mLi); 
+        }); 
+    }
+    function getDefaultRank(m) { let n = m === "easy" ? "初級" : (m === "hard" ? "上級" : "中級"); return [{name:`織田信長(${n})`,score:50},{name:`武田信玄(${n})`,score:30},{name:`上杉謙信(${n})`,score:20},{name:`伊達政宗(${n})`,score:10},{name:`浅井長政(${n})`,score:5}]; }
+    function over() { clearInterval(gameId); clearInterval(timeId); alert(`【一網打尽】ゲームオーバー！\n得点: ${score}点`); let r = JSON.parse(localStorage.getItem(`sz_rank_${mode}`)) || getDefaultRank(mode); if (r.length < 5 || score > r[r.length-1].score) { let n = prompt(`${mode.toUpperCase()}五傑にランクイン！武将名を入力：`, "名無しの名将"); if(n) { r.push({name:n, score}); r.sort((a,b)=>b.score-a.score); localStorage.setItem(`sz_rank_${mode}`, JSON.stringify(r.slice(0,5))); } } showMenu(); }
+    // ―――― スマートフォン用：ジェスチャー操作の実装 ――――
+    const MOVE_PX_PER_CELL = 24; // スワイプ移動感度（何pxで1マス動くか）
+    const DROP_PX_PER_CELL = 20; // 下スワイプ落下感度
+    const TAP_TIMEOUT = 180;    // タップ判定の許容時間（ms）
+    const TAP_MAX_DRAG = 8;     // タップ時の最大ブレ（px）
+
+    let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    let lastTrackX = 0, lastTrackY = 0;
+    let isDragging = false;
+
+    // 画面全体のベースとなる document.body をジェスチャー検知エリアに指定
+    const gestureArea = document.body;
+
+    gestureArea.addEventListener('touchstart', function(e) {
+        if (isLock || isPaused || document.getElementById('start-screen').style.display !== 'none') return;
+        
+        // メニューの各種UIボタンやラジオボタン等の通常タップを邪魔しない
+        if (e.target.closest('.sys-btn') || e.target.closest('.diff-label') || e.target.closest('.start-btn') || e.target.closest('.rank-tab')) return;
+
+        e.preventDefault();
+
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        lastTrackX = touch.clientX;
+        lastTrackY = touch.clientY;
+        touchStartTime = Date.now();
+        isDragging = false;
+    }, { passive: false });
+
+    gestureArea.addEventListener('touchmove', function(e) {
+        if (isLock || isPaused || document.getElementById('start-screen').style.display !== 'none') return;
+        if (!touchStartTime) return;
+
+        e.preventDefault();
+        const touch = e.touches[0];
+
+        const diffX = touch.clientX - touchStartX;
+        const diffY = touch.clientY - touchStartY;
+
+        if (Math.abs(diffX) > TAP_MAX_DRAG || Math.abs(diffY) > TAP_MAX_DRAG) {
+            isDragging = true;
+        }
+
+        // 左右へのスワイプ移動
+        const dragX = touch.clientX - lastTrackX;
+        if (Math.abs(dragX) >= MOVE_PX_PER_CELL) {
+            if (dragX > 0) {
+                step(1, 0);
+            } else {
+                step(-1, 0);
+            }
+            lastTrackX = touch.clientX;
+            lastTrackY = touch.clientY;
+        }
+
+        // 下へのスワイプ（ソフトドロップ）
+        const dragY = touch.clientY - lastTrackY;
+        if (dragY >= DROP_PX_PER_CELL) {
+            step(0, 1);
+            lastTrackY = touch.clientY;
+            lastTrackX = touch.clientX;
+        }
+    }, { passive: false });
+
+    gestureArea.addEventListener('touchend', function(e) {
+        if (!touchStartTime) return;
+        e.preventDefault();
+
+        const duration = Date.now() - touchStartTime;
+        const touch = e.changedTouches[0];
+        const totalDiffX = touch.clientX - touchStartX;
+        const totalDiffY = touch.clientY - touchStartY;
+
+        // 回転の判定（タップ）
+        if (!isDragging && duration < TAP_TIMEOUT && Math.abs(totalDiffX) <= TAP_MAX_DRAG && Math.abs(totalDiffY) <= TAP_MAX_DRAG) {
+            // 画面全体の幅（window.innerWidth）の左半分タップで左回転、右半分タップで右回転
+            if (touch.clientX < window.innerWidth / 2) {
+                turn('L');
+            } else {
+                turn('R');
+            }
+        }
+
+        touchStartTime = 0;
+    }, { passive: false });
+
+    showMenu();
+</script>
+</body>
+</html>
